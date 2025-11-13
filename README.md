@@ -26,18 +26,21 @@ Este proyecto automatiza la generación de reportes de diagnóstico educativo en
 ## Instalación
 
 1. Clonar el repositorio:
+
 ```bash
 git clone <url-del-repositorio>
 cd Genera-reporte-de-word-LB-LF
 ```
 
 2. Crear un entorno virtual (recomendado):
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 ```
 
 3. Instalar dependencias:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -54,21 +57,6 @@ Crea un archivo `.env` en la raíz del proyecto (este archivo está en .gitignor
 OPENAI_API_KEY=tu_api_key_aqui
 ```
 
-Modifica `openIA_analisis_conclusiones.py` para cargar la key desde el archivo .env:
-
-```python
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-```
-
-Instala python-dotenv:
-```bash
-pip install python-dotenv
-```
-
 ### AWS Credentials
 
 Si usas el script de AWS AppFlow, configura tus credenciales:
@@ -78,6 +66,7 @@ aws configure
 ```
 
 O mediante variables de entorno:
+
 ```bash
 export AWS_ACCESS_KEY_ID=tu_access_key
 export AWS_SECRET_ACCESS_KEY=tu_secret_key
@@ -89,26 +78,9 @@ export AWS_DEFAULT_REGION=us-east-1
 ### Notebook Principal
 
 Abre y ejecuta el notebook de análisis:
+
 ```bash
 jupyter notebook "NB Cuestionarios.ipynb"
-```
-
-### Ejecutar Flujos de AWS AppFlow
-
-Para forzar la ejecución de flujos scheduled en AppFlow:
-
-```bash
-# Ejecutar un flujo específico
-python "Forzar flujo.py" nombre-del-flujo
-
-# Ejecutar múltiples flujos
-python "Forzar flujo.py" flujo1 flujo2 flujo3
-
-# Modo interactivo (seleccionar de la lista)
-python "Forzar flujo.py"
-
-# Sin restaurar el trigger original
-python "Forzar flujo.py" --no-restore nombre-del-flujo
 ```
 
 ## Estructura del Proyecto
@@ -135,6 +107,7 @@ Módulo principal con funciones de análisis:
 - `insight_list()`: Genera estructura JSON con hallazgos por categoría
 
 **Características:**
+
 - Registro automático de tokens utilizados
 - Cálculo de costos por modelo
 - Soporte para múltiples modelos GPT-4o, o1, o3, etc.
@@ -151,6 +124,7 @@ Script para ejecutar flujos de AWS AppFlow con trigger Scheduled:
 ### NB Cuestionarios.ipynb
 
 Notebook interactivo que:
+
 1. Procesa datos de cuestionarios educativos
 2. Genera análisis estadísticos y visualizaciones
 3. Usa OpenAI para generar conclusiones automáticas
@@ -159,6 +133,7 @@ Notebook interactivo que:
 ## Modelos de OpenAI Soportados
 
 El sistema incluye costos actualizados para:
+
 - GPT-4.1, GPT-4o, GPT-4o-mini
 - O1, O3, O4-mini
 - Modelos especializados (audio, search, realtime)
@@ -166,6 +141,7 @@ El sistema incluye costos actualizados para:
 ## Salida
 
 El sistema genera:
+
 - Reportes en formato Word (.docx) con análisis completos
 - Archivos CSV con métricas de uso de OpenAI
 - Visualizaciones (gráficos) en el documento Word
@@ -181,6 +157,7 @@ El sistema genera:
 ## Costos
 
 El uso de OpenAI tiene costos asociados. El sistema registra automáticamente:
+
 - Tokens de entrada/salida por llamada
 - Costo en USD por modelo utilizado
 - Log detallado en `registro_tokens`
@@ -188,6 +165,7 @@ El uso de OpenAI tiene costos asociados. El sistema registra automáticamente:
 ## Contribuir
 
 Para contribuir al proyecto:
+
 1. Haz un fork del repositorio
 2. Crea una rama para tu feature
 3. Realiza tus cambios
