@@ -4,6 +4,8 @@ from typing import List, Union
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import json
+import re
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -45,7 +47,7 @@ PRECIOS_MODELOS = {
     'gpt-image-1': {'input': 5.00, 'output': 1.25},
 }
 
-def call_gpt(prompt: str, modelo: str = "gpt-4o-mini", max_tokens: int = 1500, temperature: float = 0.7) -> str:
+def call_gpt(prompt: str, modelo: str = "gpt-4.1-nano", max_tokens: int = 1500, temperature: float = 0.7) -> str:
     """
     Llama a la API de OpenAI. Por defecto usa gpt-4o-mini.
     
@@ -61,11 +63,41 @@ def call_gpt(prompt: str, modelo: str = "gpt-4o-mini", max_tokens: int = 1500, t
         response = openai.chat.completions.create(
             model=modelo,
             messages=[
-                {"role": "system", "content": """Eres un asistente analítico experto en datos, especializado en el sector educativo.
-                 Vas a analizar datos de una empresa dedicada a la educación que implementa proyectos formativos. 
-                 Tu tarea es interpretar los datos proporcionados, que incluyen respuestas a estas encuestas, y generar conclusiones sin suponer nada no basado estrictamente en los datos.
-                 considerando diferencias entre las respuestas de entrada y salida, tendencias en las respuestas y posibles patrones demográficos o de comportamiento.
-                 
+                {"role": "system", "content": """
+Eres un analista de datos educativos especializado en la redacción de informes técnicos profesionales.
+
+CONTEXTO:
+Debes redactar secciones específicas de un informe sobre resultados de proyectos educativos, basándote únicamente en los datos proporcionados.
+
+DIRECTRICES ESTRICTAS:
+
+1. OBJETIVIDAD ABSOLUTA:
+   - Describe únicamente lo que muestran los datos, sin interpretaciones causales
+   - Evita correlaciones no fundamentadas (ej: "X indica éxito del programa")
+   - No atribuyas significado sin evidencia directa
+   - Usa lenguaje neutral y descriptivo
+
+2. LENGUAJE PROFESIONAL:
+   - Emplea terminología técnica apropiada
+   - Redacta en tercera persona
+   - Utiliza voz pasiva cuando sea pertinente
+   - Mantén un tono formal y académico
+
+3. PROHIBICIONES EXPLÍCITAS:
+   - NO inferir causalidad sin evidencia
+   - NO hacer juicios de valor sobre los datos
+   - NO relacionar variables demográficas con éxito/fracaso
+   - NO incluir recomendaciones no solicitadas
+   - NO usar adjetivos valorativos (exitoso, deficiente, prometedor)
+
+4. FORMATO DE RESPUESTA:
+   - Párrafos concisos de 3-5 oraciones
+   - Incluye datos específicos cuando sea relevante (porcentajes, cifras)
+
+EJEMPLO DE REDACCIÓN APROPIADA:
+Incorrecto: "La alta participación femenina (70%) demuestra el éxito del programa"
+Correcto: "La distribución por género muestra una participación del 70% de mujeres y 30% de hombres"
+
                  """},
                 {"role": "user", "content": prompt}
             ],
@@ -225,16 +257,19 @@ def insight_parcial(data_list: List[Union[int, float, str]], pregunta: str = "",
     
     return call_gpt(base_prompt, max_tokens=tokens)
 
+
 def insight_list(data_list: List[Union[int, float, str]], proyectos: pd.DataFrame = None, introduccion: str = "", tokens: int = 2000) -> str:
     """
-    Analiza una lista y obtiene insights claves pero extensos.
+    Analiza una lista y obtiene insights claves pero extensos, devolviendo un JSON válido.
     
     Args:
         data_list (List): Lista de datos a analizar.
+        proyectos (pd.DataFrame): DataFrame con información de proyectos.
         introduccion (str): Introducción o contexto del análisis.
+        tokens (int): Máximo de tokens para la respuesta.
     
     Returns:
-        str: Conclusión generada por el modelo.
+        str: JSON válido con insights generados por el modelo.
     """
     # Convertir lista a string
     list_str = ", ".join(str(item) for item in data_list)
@@ -244,7 +279,7 @@ def insight_list(data_list: List[Union[int, float, str]], proyectos: pd.DataFram
     else:
         json_str = ""
     
-    # Construir prompt base
+    # Construir prompt mejorado con instrucciones más estrictas
     base_prompt = f"""
 Basándote en la siguiente introducción, información de proyectos y conclusiones parciales, genera un resumen estructurado en formato JSON que destaque los principales hallazgos e insights por dimensión o categoría.
 
@@ -257,57 +292,159 @@ Basándote en la siguiente introducción, información de proyectos y conclusion
 👉 Conclusiones parciales:
 {list_str}
 
-🧾 Formato de salida (devuelve solo un JSON):
+🧾 Formato de salida EXACTO (devuelve ÚNICAMENTE este JSON, sin texto adicional):
 {{    
   "Contexto General del Diagnóstico": [
     "Insight 1",
     "Insight 2",
-    "Insight 3",
-    ...
+    "Insight 3"
   ],
   "Hallazgos Clave y Correlaciones Relevantes": {{
-    "<Nombre de la categoría>": [
+    "Nombre de la categoría": [
       "Insight 1",
       "Insight 2",
       "Insight 3",
-      ...,
-      "Implicación: ..."
-    ],
-    ...
+      "Implicación: texto aquí"
+    ]
   }},
   "Retos Priorizados Identificados": [
     {{
       "Eje": "Nombre del eje",
       "Reto": "Descripción del reto",
       "Relevancia": "Razón por la cual es importante"
-    }},
-    ...
+    }}
   ],
   "Otras Secciones Relevantes": {{
     "Título de la sección": [
       "Insight 1",
       "Insight 2",
-      "Insight 3",
-      ...
-    ],
-    ...
+      "Insight 3"
+    ]
   }},
   "Relevancia del Programa": [
     "Punto 1 sobre impacto del programa",
     "Punto 2",
-    "Punto 3",
-    ...
+    "Punto 3"
   ]
 }}
 
+✅ INSTRUCCIONES CRÍTICAS PARA JSON VÁLIDO:
+- Tu respuesta DEBE ser ÚNICAMENTE el objeto JSON, sin markdown, sin explicaciones, sin comentarios
+- NO uses comillas simples, SOLO comillas dobles
+- NO pongas comas después del último elemento de arrays o objetos
+- NO uses saltos de línea dentro de los strings (usa espacios en su lugar)
+- Si necesitas usar comillas dentro de un string, escápalas con backslash
+- NO incluyas los caracteres ```json o ``` al inicio o final
+- Si alguna sección no aplica, omítela completamente
+- Asegúrate de cerrar todos los corchetes y llaves correctamente
+- Los valores numéricos NO deben estar entre comillas
 
-✅ Instrucciones:
-- No incluyas ningún texto fuera del JSON, asegurate de que el json sea valido.
-- Si alguna sección no aplica, omítela (no dejes campos vacíos).
-- Usa nombres de categoría o sección que surjan naturalmente del análisis.
-- Redacta en estilo claro y sintético. Usa viñetas si lo considerás útil.
-- Las implicaciones deben reflejar posibles líneas de acción o interpretaciones del dato.
-
+RECUERDA: Solo devuelve el JSON, absolutamente NADA más.
 """
     
-    return call_gpt(base_prompt, max_tokens=tokens)
+    # Llamar al modelo GPT
+    respuesta_gpt = call_gpt(base_prompt, max_tokens=tokens)
+    
+    # Limpiar y validar el JSON
+    json_limpio = limpiar_json_respuesta(respuesta_gpt)
+    
+    return json_limpio
+
+
+def limpiar_json_respuesta(texto_respuesta: str) -> str:
+    """
+    Limpia y valida el JSON devuelto por GPT para asegurar que sea válido.
+    
+    Args:
+        texto_respuesta (str): Respuesta cruda del modelo GPT.
+    
+    Returns:
+        str: JSON válido como string.
+    """
+    try:
+        # Paso 1: Extraer solo el JSON del texto
+        # Buscar el patrón del JSON
+        match = re.search(r'\{.*\}', texto_respuesta, re.DOTALL)
+        
+        if not match:
+            print("⚠️ No se encontró JSON en la respuesta")
+            return json.dumps({
+                "error": "No se pudo generar el JSON",
+                "respuesta_original": texto_respuesta[:500]
+            })
+        
+        json_str = match.group(0)
+        
+        # Paso 2: Limpiezas básicas
+        # Eliminar markdown si existe
+        json_str = re.sub(r'```json\s*', '', json_str)
+        json_str = re.sub(r'```\s*', '', json_str)
+        
+        # Paso 3: Intentar parsear directamente
+        try:
+            parsed = json.loads(json_str)
+            # Si funciona, devolverlo como string JSON válido
+            return json.dumps(parsed, ensure_ascii=False, indent=2)
+        except json.JSONDecodeError:
+            pass
+        
+        # Paso 4: Aplicar correcciones si falla el parseo inicial
+        # Eliminar saltos de línea problemáticos dentro de strings
+        json_str = re.sub(r'("(?:[^"\\]|\\.)*")', 
+                         lambda m: m.group(0).replace('\n', ' ').replace('\r', ''), 
+                         json_str)
+        
+        # Eliminar comas antes de } o ]
+        json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+        
+        # Corregir comillas mal escapadas
+        json_str = re.sub(r'\\([^"\\/bfnrtu])', r'\1', json_str)
+        
+        # Eliminar caracteres invisibles problemáticos
+        json_str = ''.join(char for char in json_str if ord(char) >= 32 or char in '\n\r\t')
+        
+        # Paso 5: Segundo intento de parseo
+        try:
+            parsed = json.loads(json_str)
+            return json.dumps(parsed, ensure_ascii=False, indent=2)
+        except json.JSONDecodeError as e:
+            print(f"⚠️ Error al parsear JSON después de limpieza: {e}")
+            
+            # Paso 6: Intento más agresivo de reparación
+            try:
+                # Reemplazar valores problemáticos
+                json_str = re.sub(r':\s*undefined', ': null', json_str)
+                json_str = re.sub(r':\s*NaN', ': null', json_str)
+                
+                # Asegurar que los strings estén entre comillas
+                json_str = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', json_str)
+                
+                parsed = json.loads(json_str)
+                return json.dumps(parsed, ensure_ascii=False, indent=2)
+                
+            except:
+                # Paso 7: Si todo falla, devolver una estructura por defecto
+                print("❌ No se pudo reparar el JSON. Devolviendo estructura por defecto.")
+                return json.dumps({
+                    "Contexto General del Diagnóstico": [
+                        "Error al procesar la respuesta del modelo"
+                    ],
+                    "Hallazgos Clave y Correlaciones Relevantes": {
+                        "Estado": ["Revisar manualmente la salida del modelo"]
+                    },
+                    "Retos Priorizados Identificados": [
+                        {
+                            "Eje": "Procesamiento",
+                            "Reto": "Error en formato JSON",
+                            "Relevancia": "Requiere revisión manual"
+                        }
+                    ],
+                    "respuesta_original_truncada": texto_respuesta[:500]
+                }, ensure_ascii=False, indent=2)
+                
+    except Exception as e:
+        print(f"❌ Error inesperado: {e}")
+        return json.dumps({
+            "error": str(e),
+            "mensaje": "Error procesando la respuesta"
+        })
